@@ -1,0 +1,51 @@
+
+
+
+*Create half years to increase pre-period
+*create event study in years we have 2014 to 2021 data
+gen year=year(indexdate)
+gen quarter=quarter(indexdate)
+gen halfyear=hofd(indexdate)
+
+format halfyear %tm
+
+gen period=.
+replace period=halfyear+1-108
+
+tab period if baseline_period==1
+tab period if post_period==1 
+
+tab indexdate if year==2016 & post_period==0 
+
+tab indexdate if period==16 //drop only one day 
+drop if period==16
+
+*exlcude period of intermittance - this is period q1 and q2 of 2016
+drop if  baseline_period==0 & post_period==0
+
+tab period, gen(time)
+
+forvalues x=1(1)14{
+gen period_expansion`x'	=ocm_practice*time`x'
+}
+
+*drop H1 2014 and add year fixed effects instead of post treatment 
+drop if halfyear==108
+
+//In Half Years
+local etable6 "Etable6_full"
+
+*controls 
+global controls_demo breast_cancer_flag lung_cancer_flag colorectal_cancer_flag prostate_cancer_flag pancreatic_cancer_flag other_cancer_flag age medianfamilyincome medianfamilyincome_miss ratiowhite ratioasian ratioblack ratiowhitehisp ratioblackhisp female dci_score ma_flg
+
+global controls_practice_market episode_vol npi_anthem_volume npi_radiation npi_medical sys_aff_aha2 academic_aff_pos2 penetration
+
+global cost post_6mon_allowed post_6mon_oop post_6mon_er_cost post_6mon_inp_cost post_6mon_out_cost post_6mon_allowed_rx post_6mon_chemocpt_allowed post_6mon_out_lab_cost  post_6mon_out_radiation_cost post_6mon_out_imaging_cost  post_6mon_out_em_noncan_cost post_6mon_out_em_can_cost
+
+gen yr=year(indexdate)
+
+foreach x in  $cost {
+regress `x'  period_expansion2 period_expansion3 period_expansion5 period_expansion6 period_expansion7 period_expansion8 period_expansion9 period_expansion10 period_expansion11 period_expansion12 period_expansion13 period_expansion14  $controls_demo $controls_practice_market i.attributedtin_2 i.yr, cluster(attributedtin_2)
+outreg2 using `etable6' , excel append
+}
+
